@@ -1,15 +1,15 @@
 import numpy as np
 
 from audio_capture import AudioCapture
-from audio_playback import AudioPlayback
 from audio_network import AudioNetwork
+from audio_playback import AudioPlayback
 from dsp_engine import DSPEngine
 
 from config import (
     BLOCK_SIZE,
     INPUT_CHANNELS,
-    MIC_THRESHOLD,
     MAP_WIDTH,
+    MIC_THRESHOLD,
 )
 
 
@@ -23,9 +23,9 @@ class VoiceEngine:
         remote_port,
     ):
 
-        self.capture = AudioCapture()
+        # Audio modules
 
-        self.playback = AudioPlayback()
+        self.capture = AudioCapture()
 
         self.network = AudioNetwork(
             local_ip=local_ip,
@@ -34,27 +34,58 @@ class VoiceEngine:
             remote_port=remote_port,
         )
 
+        self.playback = AudioPlayback()
+
         self.dsp = DSPEngine()
 
-        self.last_volume = 0.0
+        # Runtime state
 
-    # -----------------------------------
+        self.listener_position = (0.0, 0.0)
+        self.source_position = (0.0, 0.0)
+
+        self.current_volume = 0.0
+
+    # =====================================
+
+    # Lifecycle
+
+    # =====================================
 
     def start(self):
 
         self.capture.start()
-
         self.playback.start()
-
-    # -----------------------------------
 
     def stop(self):
 
         self.capture.stop()
-
         self.playback.stop()
 
-    # -----------------------------------
+    # =====================================
+
+    # Position
+
+    # =====================================
+
+    def set_listener_position(
+        self,
+        position,
+    ):
+
+        self.listener_position = position
+
+    def set_source_position(
+        self,
+        position,
+    ):
+
+        self.source_position = position
+
+    # =====================================
+
+    # RMS
+
+    # =====================================
 
     def calculate_volume(
         self,
@@ -62,36 +93,44 @@ class VoiceEngine:
     ):
 
         rms = np.sqrt(
-            np.mean(
-                audio_buffer ** 2
-            )
+            np.mean(audio_buffer ** 2)
         )
 
         return float(rms)
 
-    # -----------------------------------
+    # =====================================
 
-    def capture_frame(self):
+    # Current Volume
 
-        return self.capture.read()
+    # =====================================
 
-    # -----------------------------------
+    def get_current_volume(self):
 
-    def send_voice(self):
+        return self.current_volume
 
-        frame = self.capture_frame()
+    # =====================================
+
+    # Capture + Voice Activity Detection
+    # + UDP Send
+    # =====================================
+
+    def capture_and_send(self):
+
+        frame = self.capture.read()
 
         volume = self.calculate_volume(
             frame
         )
 
-        self.last_volume = volume
-
-        making_noise = (
-            volume >= MIC_THRESHOLD
+        self.current_volume = min(
+            max(volume, 0.0),
+            1.0,
         )
 
-        # Chỉ gửi khi có tiếng nói
+        making_noise = (
+            self.current_volume >= MIC_THRESHOLD
+        )
+
         if making_noise:
 
             self.network.send_audio(
@@ -100,13 +139,13 @@ class VoiceEngine:
 
         return making_noise
 
-    # -----------------------------------
+    # =====================================
 
-    def receive_voice(
-        self,
-        listener_position,
-        source_position,
-    ):
+    # Receive + DSP + Playback
+
+    # =====================================
+
+    def receive_and_play(self):
 
         frame = self.network.receive_audio(
 
@@ -120,46 +159,18 @@ class VoiceEngine:
 
             return
 
-        processed = self.dsp.process(
+        stereo = self.dsp.process(
 
             audio_buffer=frame,
 
-            listener_position=listener_position,
+            listener_position=self.listener_position,
 
-            source_position=source_position,
+            source_position=self.source_position,
 
             map_width=MAP_WIDTH,
 
         )
 
         self.playback.play(
-
-            processed
-
+            stereo
         )
-
-    # -----------------------------------
-
-    def update(
-        self,
-        listener_position,
-        source_position,
-    ):
-
-        making_noise = self.send_voice()
-
-        self.receive_voice(
-
-            listener_position,
-
-            source_position,
-
-        )
-
-        return making_noise
-
-    # -----------------------------------
-
-    def get_current_volume(self):
-
-        return self.last_volume

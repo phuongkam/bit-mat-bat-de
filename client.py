@@ -78,21 +78,23 @@ class GameClient:
         self.clock = pygame.time.Clock()
         # Voice Engine
 
-        # voice_port = port + 100
+        # ------------------------
 
-        # self.voice = VoiceEngine(
+        voice_port = port + 100
 
-            # local_ip="0.0.0.0",
+        self.voice = VoiceEngine(
 
-            # local_port=voice_port,
+            local_ip="0.0.0.0",
 
-            # remote_ip=server,
+            local_port=voice_port,
 
-            # remote_port=voice_port,
+            remote_ip=server,
 
-        # )
+            remote_port=voice_port,
 
-        # self.voice.start()
+        )
+
+        self.voice.start()
 
         self.font = pygame.font.SysFont(None, 30)
         self.small_font = pygame.font.SysFont(None, 22)
@@ -110,42 +112,204 @@ class GameClient:
                     self.reset_requested = True
 
             input_state = self.collect_input()
-            self.send_input(input_state, now)
-            self.receive_state(now)
-            self.render(input_state, dt, now)
 
-        # self.voice.stop()
+            # ------------------------
+            # Send Player Input
+            # ------------------------
+
+            self.send_input(
+
+                input_state,
+
+                now,
+
+            )
+
+            # ------------------------
+            # Receive Game State
+            # ------------------------
+
+            self.receive_state(
+
+                now,
+
+            )
+
+            # ------------------------
+            # Update DSP Positions
+            # ------------------------
+
+            hunter = self.state["hunter"]
+
+            goat = self.state["goat"]
+
+            if self.role == "hunter":
+
+                self.voice.set_listener_position(
+
+                    (
+
+                        hunter["x"],
+
+                        hunter["y"],
+
+                    )
+
+                )
+
+                self.voice.set_source_position(
+
+                    (
+
+                        goat["x"],
+
+                        goat["y"],
+
+                    )
+
+                )
+
+            else:
+
+                self.voice.set_listener_position(
+
+                    (
+
+                        goat["x"],
+
+                        goat["y"],
+
+                    )
+
+                )
+
+                self.voice.set_source_position(
+
+                    (
+
+                        hunter["x"],
+
+                        hunter["y"],
+
+                    
+                    )
+
+                )
+
+            # ------------------------
+            # Receive Voice
+            # ------------------------
+
+            self.voice.receive_and_play()
+
+            # ------------------------
+            # Render
+            # ------------------------
+
+            self.render(
+
+                input_state,
+
+                dt,
+
+                now,
+
+            )
+
+        self.voice.stop()
 
         pygame.quit()
 
     def collect_input(self) -> dict[str, Any]:
+
         keys = pygame.key.get_pressed()
+
         dx = 0
         dy = 0
-        making_noise = False
+
+        # ------------------------
+        # Movement
+        # ------------------------
 
         if self.role == "hunter":
-            dx = int(keys[pygame.K_d]) - int(keys[pygame.K_a])
-            dy = int(keys[pygame.K_s]) - int(keys[pygame.K_w])
+
+            dx = (
+                int(keys[pygame.K_d])
+                - int(keys[pygame.K_a])
+            )
+
+            dy = (
+                int(keys[pygame.K_s])
+                - int(keys[pygame.K_w])
+            )
+
         else:
-            dx = (int(keys[pygame.K_RIGHT]) or int(keys[pygame.K_d])) - (
-                int(keys[pygame.K_LEFT]) or int(keys[pygame.K_a])
-            )
-            dy = (int(keys[pygame.K_DOWN]) or int(keys[pygame.K_s])) - (
-                int(keys[pygame.K_UP]) or int(keys[pygame.K_w])
+
+            dx = (
+                int(keys[pygame.K_RIGHT])
+                or int(keys[pygame.K_d])
+            ) - (
+                int(keys[pygame.K_LEFT])
+                or int(keys[pygame.K_a])
             )
 
-        requested_direction = dx != 0 or dy != 0
+            dy = (
+                int(keys[pygame.K_DOWN])
+                or int(keys[pygame.K_s])
+            ) - (
+                int(keys[pygame.K_UP])
+                or int(keys[pygame.K_w])
+            )
+
+        # ------------------------
+        # Audio Streaming
+        # ------------------------
+
+        making_noise = self.voice.capture_and_send()
+
+        # ------------------------
+        # Goat movement rule
+        # ------------------------
+
+        requested_direction = (
+            dx != 0
+            or dy != 0
+        )
+
         if self.role == "hunter":
+
             actually_moving = requested_direction
+
         else:
-            actually_moving = requested_direction and (making_noise or not GOAT_REQUIRES_NOISE_TO_MOVE)
+
+            actually_moving = (
+
+                requested_direction
+
+                and
+
+                (
+
+                    making_noise
+
+                    or
+
+                    not GOAT_REQUIRES_NOISE_TO_MOVE
+
+                )
+
+            )
 
         return {
+
             "dx": dx,
+
             "dy": dy,
+
             "moving": actually_moving,
+
             "making_noise": making_noise,
+
         }
 
     def send_input(self, input_state: dict[str, Any], now: float) -> None:
