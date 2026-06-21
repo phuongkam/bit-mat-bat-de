@@ -78,21 +78,21 @@ class GameClient:
         self.clock = pygame.time.Clock()
         # Voice Engine
 
-        voice_port = port + 100
+        # voice_port = port + 100
 
-        self.voice = VoiceEngine(
+        # self.voice = VoiceEngine(
 
-            local_ip="0.0.0.0",
+            # local_ip="0.0.0.0",
 
-            local_port=voice_port,
+            # local_port=voice_port,
 
-            remote_ip=server,
+            # remote_ip=server,
 
-            remote_port=voice_port,
+            # remote_port=voice_port,
 
-        )
+        # )
 
-        self.voice.start()
+        # self.voice.start()
 
         self.font = pygame.font.SysFont(None, 30)
         self.small_font = pygame.font.SysFont(None, 22)
@@ -114,7 +114,7 @@ class GameClient:
             self.receive_state(now)
             self.render(input_state, dt, now)
 
-        self.voice.stop()
+        # self.voice.stop()
 
         pygame.quit()
 
@@ -122,50 +122,7 @@ class GameClient:
         keys = pygame.key.get_pressed()
         dx = 0
         dy = 0
-        hunter = self.state["hunter"]
-
-        goat = self.state["goat"]
-
-        if self.role == "hunter":
-
-            listener_position = (
-
-                hunter["x"],
-
-                hunter["y"],
-
-            )
-
-            source_position = (
-
-                goat["x"],
-
-                goat["y"],
-
-            )
-
-        else:
-
-            listener_position = (
-
-                goat["x"],
-
-                goat["y"],
-
-            )
-
-            source_position = (
-
-                hunter["x"],
-
-                hunter["y"],
-
-            )
-       
-        making_noise = self.voice.update(
-            listener_position,
-            source_position,
-        )
+        making_noise = False
 
         if self.role == "hunter":
             dx = int(keys[pygame.K_d]) - int(keys[pygame.K_a])

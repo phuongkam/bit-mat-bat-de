@@ -38,7 +38,7 @@ INPUT_STALE_SECONDS = 0.35
 PACKET_SIZE = 8192
 
 HUNTER_START = (120, WINDOW_HEIGHT / 2)
-GOAT_START = (WINDOW_WIDTH - 130, WINDOW_HEIGHT / 2)
+GOAT_START = (760, 520)
 
 # Rectangles are (x, y, width, height). Obstacles are short bars by design:
 # they shape movement for the goat without creating a maze.
